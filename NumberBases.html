@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive Number Bases</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: Arial, sans-serif;
+  background: #eff6ff; color: #172554;
+}
+main {
+  max-width: 1000px; margin: auto;
+  background: white; padding: 30px;
+  border-radius: 20px; text-align: center;
+  box-shadow: 0 8px 30px #cbd5e1;
+}
+h1 { color: #1d4ed8; font-size: 34px; }
+label { font-size: 20px; font-weight: bold; }
+input, select, button {
+  font-size: 20px; padding: 10px;
+  margin: 8px; border-radius: 8px;
+}
+input[type=range] { width: 85%; accent-color: #2563eb; }
+input[type=number] { width: 150px; }
+button {
+  background: #2563eb; color: white;
+  border: none; cursor: pointer;
+}
+button:hover { background: #1e40af; }
+.bases { margin: 15px; }
+.result {
+  font-size: clamp(32px, 5vw, 54px);
+  color: #0f766e; font-weight: bold;
+  overflow-wrap: anywhere; margin: 20px;
+}
+.panel {
+  background: #f1f5f9; padding: 18px;
+  border-radius: 12px; margin-top: 18px;
+}
+.equation {
+  font-size: clamp(18px, 3vw, 27px);
+  line-height: 1.8; overflow-wrap: anywhere;
+}
+.small { color: #475569; font-size: 17px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Explore Number Systems</h1>
+<p class="small">
+Change the integer and base. Observe how its representation changes!
+</p>
+
+<label for="slider">Choose a positive integer</label>
+<h2 id="number">25</h2>
+
+<input id="slider" type="range" min="1" max="1000"
+       value="25" step="1">
+<p class="small">1 <span style="float:right">1000</span></p>
+
+<label for="manual">Or enter a number:</label>
+<input id="manual" type="number" min="1" max="1000000"
+       value="25">
+
+<div class="bases">
+<label for="base">Number base:</label>
+<select id="base">
+  <option value="2">Binary (base 2)</option>
+  <option value="8">Octal (base 8)</option>
+  <option value="10">Decimal (base 10)</option>
+  <option value="16">Hexadecimal (base 16)</option>
+</select>
+</div>
+
+<button id="reveal">Reveal place values</button>
+
+<div class="panel">
+  <p class="small">Representation in the selected base</p>
+  <div id="result" class="result">11001₂</div>
+  <div id="equation" class="equation"></div>
+  <p id="rule" class="small"></p>
+</div>
+</main>
+
+<script>
+const slider = document.getElementById("slider");
+const manual = document.getElementById("manual");
+const base = document.getElementById("base");
+const numberLabel = document.getElementById("number");
+const result = document.getElementById("result");
+const equation = document.getElementById("equation");
+const rule = document.getElementById("rule");
+
+const symbols = "0123456789ABCDEF";
+const subscripts = {
+  2: "₂", 8: "₈", 10: "₁₀", 16: "₁₆"
+};
+
+function update(value, showExpansion = true) {
+  const n = Number(value);
+  const b = Number(base.value);
+
+  if (!Number.isSafeInteger(n) || n < 1 ||
+      n > 1000000) {
+    result.textContent = "Enter 1–1,000,000";
+    equation.textContent = "";
+    rule.textContent = "";
+    return;
+  }
+
+  numberLabel.textContent = n;
+  const representation = n.toString(b).toUpperCase();
+  result.textContent = representation + subscripts[b];
+
+  if (n <= 1000) {
+    slider.value = n;
+  }
+
+  manual.value = n;
+
+  if (!showExpansion) {
+    equation.textContent = "Click Reveal place values to expand.";
+    rule.textContent = "";
+    return;
+  }
+
+  const terms = [...representation].map((digit, i) => {
+    const coefficient = symbols.indexOf(digit);
+    const power = representation.length - 1 - i;
+    return coefficient + " × " + b + "^" + power;
+  });
+
+  equation.textContent =
+    n + " = " + terms.join(" + ") + " = " + n;
+
+  rule.textContent =
+    "Valid digits: 0 to " + (b - 1) +
+    ". Each position represents a power of " + b + ".";
+}
+
+slider.addEventListener("input", () => {
+  update(slider.value, false);
+});
+manual.addEventListener("change", () => {
+  update(manual.value, true);
+});
+base.addEventListener("change", () => {
+  update(manual.value, true);
+});
+document.getElementById("reveal").addEventListener(
+  "click", () => update(manual.value, true)
+);
+
+update(25);
+</script>
+</body>
+</html>
