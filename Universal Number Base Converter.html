@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Universal Base Converter</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: Arial, sans-serif;
+  background: #eff6ff; color: #172554;
+}
+main {
+  max-width: 1000px; margin: auto;
+  background: white; padding: 30px;
+  border-radius: 20px; text-align: center;
+  box-shadow: 0 8px 30px #cbd5e1;
+}
+h1 { color: #3c6ec8; font-size: 34px; margin-bottom: 5px; } 
+label { font-size: 18px; font-weight: bold; display: inline-block; margin: 10px; }
+input, select, button {
+  font-size: 20px; padding: 10px;
+  margin: 8px; border-radius: 8px;
+  border: 2px solid #cbd5e1;
+}
+input:focus, select:focus {
+  border-color: #3c6ec8; outline: none;
+}
+input[type=range] { width: 85%; accent-color: #3c6ec8; border: none; }
+input[type=text] { width: 320px; text-align: center; font-family: monospace; }
+button {
+  background: #3c6ec8; color: white;
+  border: none; cursor: pointer;
+  transition: background 0.2s;
+  padding: 10px 24px; font-weight: bold;
+}
+button:hover { background: #284c8c; }
+.selectors-box {
+  background: #e8f0fe; padding: 15px; 
+  border-radius: 12px; margin: 15px 0;
+  display: flex; justify-content: center; align-items: center; flex-wrap: wrap;
+}
+.panel {
+  background: #f1f5f9; padding: 20px;
+  border-radius: 12px; margin-top: 20px;
+  text-align: left;
+}
+.result-box {
+  font-size: clamp(32px, 5vw, 48px);
+  color: #0f766e; font-weight: bold;
+  overflow-wrap: anywhere; margin: 15px 0;
+  text-align: center;
+  font-family: monospace;
+}
+.steps {
+  font-size: clamp(16px, 2.3vw, 21px);
+  line-height: 1.8; overflow-wrap: anywhere;
+  background: white; padding: 15px;
+  border-radius: 8px; border-left: 5px solid #3c6ec8;
+  font-family: monospace;
+}
+.error-msg { color: #de3100; font-weight: bold; margin: 10px 0; display: none; text-align:center;} 
+.small { color: #475569; font-size: 16px; margin: 5px 0; }
+.flex-center { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main>
+<h1>Universal Number Base Converter</h1>
+<p class="small">Interactive multi-base matrix with dynamically generated derivations.</p>
+
+<div class="selectors-box">
+  <label for="from-base">From:</label>
+  <select id="from-base">
+    <option value="10">Decimal (base 10)</option>
+    <option value="2">Binary (base 2)</option>
+    <option value="8">Octal (base 8)</option>
+    <option value="16">Hexadecimal (base 16)</option>
+  </select>
+
+  <label for="to-base">To:</label>
+  <select id="to-base">
+    <option value="2">Binary (base 2)</option>
+    <option value="8">Octal (base 8)</option>
+    <option value="10">Decimal (base 10)</option>
+    <option value="16">Hexadecimal (base 16)</option>
+  </select>
+</div>
+
+<div>
+  <label id="input-label" for="manual-input">Enter Value:</label>
+  <div class="flex-center">
+    <input id="manual-input" type="text" value="25">
+  </div>
+  <div id="error-box" class="error-msg"></div>
+  
+  <div id="slider-wrapper">
+    <input id="slider" type="range" min="0" max="6" value="1.3979" step="0.0001">
+    <p class="small">Decimal Range Scope: 1 <span style="float:right">1,000,000</span></p>
+  </div>
+</div>
+
+<div class="flex-center" style="margin-top: 15px;">
+  <button id="reveal">Reveal Steps</button>
+</div>
+
+<div class="panel">
+  <p class="small" style="text-align:center; font-weight:bold;">Conversion Value Output</p>
+  <div id="result" class="result-box">11001₂</div>
+  <div id="steps-container" style="display:none;">
+    <h3 style="margin-top:0; color:#3c6ec8;">Mathematical Derivation Sequence:</h3>
+    <div id="equation" class="steps"></div>
+  </div>
+  <p id="placeholder-text" style="text-align:center; color:#64748b; margin:0;">Click 'Reveal Steps' to inspect the mathematical breakdown.</p>
+</div>
+</main>
+
+<script>
+const fromBaseSelect = document.getElementById("from-base");
+const toBaseSelect = document.getElementById("to-base");
+const manualInput = document.getElementById("manual-input");
+const errorBox = document.getElementById("error-box");
+const slider = document.getElementById("slider");
+const sliderWrapper = document.getElementById("slider-wrapper");
+const inputLabel = document.getElementById("input-label");
+const revealBtn = document.getElementById("reveal");
+const result = document.getElementById("result");
+const stepsContainer = document.getElementById("steps-container");
+const equation = document.getElementById("equation");
+const placeholderText = document.getElementById("placeholder-text");
+
+const symbols = "0123456789ABCDEF";
+const subscripts = { 2: "₂", 8: "₈", 10: "₁₀", 16: "₁₆" };
+const names = { 2: "Binary", 8: "Octal", 10: "Decimal", 16: "Hexadecimal" };
+
+let isExpanded = false;
+
+function logToNum(val) { return Math.round(Math.pow(10, Number(val))); }
+function numToLog(num) { return Math.log10(Number(num)); }
+
+function isValidInput(str, base) {
+  if (str.length === 0) return false;
+  for (let i = 0; i < str.length; i++) {
+    let index = symbols.indexOf(str[i]);
+    if (index === -1 || index >= base) return false;
+  }
+  return true;
+}
+
+function processConversion(hideSteps = true) {
+  errorBox.style.display = "none";
+  const srcBase = Number(fromBaseSelect.value);
+  const destBase = Number(toBaseSelect.value);
+  let rawValue = manualInput.value.trim().toUpperCase();
+  
+  if (hideSteps) isExpanded = false;
+
+  if (rawValue === "") {
+    showError("Input field cannot be left blank.");
+    return;
+  }
+
+  if (srcBase === destBase) {
+    result.textContent = rawValue + subscripts[destBase];
+    equation.innerHTML = `Source base and destination base match. No operational conversion required: <strong>${rawValue}${subscripts[srcBase]}</strong>`;
+    handleToggleUIState();
+    return;
+  }
+
+  if (!isValidInput(rawValue, srcBase)) {
+    showError(`Invalid characters detected. ${names[srcBase]} only accepts symbols from: ` + (srcBase === 16 ? "0-9, A-F" : "0-" + (srcBase - 1)));
+    return;
+  }
+
+  let decimalVal = parseInt(rawValue, srcBase);
+  if (isNaN(decimalVal) || decimalVal < 0 || decimalVal > 1000000000) {
+    showError("Value outside of safe computational boundaries.");
+    return;
+  }
+
+  if (srcBase === 10 && decimalVal <= 1000000 && decimalVal > 0) {
+    slider.value = numToLog(decimalVal);
+  }
+
+  const finalString = decimalVal.toString(destBase).toUpperCase();
+  result.textContent = finalString + subscripts[destBase];
+
+  handleToggleUIState();
+
+  if (!isExpanded) return;
+
+  let html = "";
+  
+  if (srcBase !== 10) {
+    html += `<strong>Step 1: Convert ${names[srcBase]} into a Decimal base value via positional polynomial expansion:</strong><br>`;
+    html += `${rawValue}${subscripts[srcBase]} = ` + [...rawValue].map((digit, i) => {
+      let coeff = symbols.indexOf(digit);
+      let p = rawValue.length - 1 - i;
+      return `(${coeff} × ${srcBase}<sup>${p}</sup>)`;
+    }).join(" + ") + ` = <strong>${decimalVal}₁₀</strong><br><br>`;
+  } else {
+    html += `<strong>Step 1: Starting Value is already standard Decimal: <strong>${decimalVal}₁₀</strong></strong><br><br>`;
+  }
+
+  if (destBase !== 10) {
+    html += `<strong>Step 2: Express Decimal ${decimalVal}₁₀ as a polynomial multiplication using powers of ${destBase}:</strong><br>`;
+    html += `Targeting place values matching Base ${destBase} representation components:<br>`;
+    
+    // Dynamically build the multiplication layout using destination base power weights
+    let terms = [];
+    for (let i = 0; i < finalString.length; i++) {
+      let digit = finalString[i];
+      let coeff = symbols.indexOf(digit);
+      let power = finalString.length - 1 - i;
+      terms.push(`(${coeff} × ${destBase}<sup>${power}</sup>)`);
+    }
+    
+    html += `<strong>${decimalVal}₁₀</strong> = ` + terms.join(" + ") + `<br><br>`;
+    html += `Extracting the multipliers sequentially from left to right yields: <strong>${finalString}${subscripts[destBase]}</strong>`;
+  } else {
+    html += `<strong>Step 2: Conversion complete. Final target values settle directly on the evaluation metric: <strong>${decimalVal}₁₀</strong></strong>`;
+  }
+
+  equation.innerHTML = html;
+}
+
+function handleToggleUIState() {
+  if (!isExpanded) {
+    stepsContainer.style.display = "none";
+    placeholderText.style.display = "block";
+    placeholderText.textContent = "Click 'Reveal Steps' to inspect the mathematical breakdown.";
+    revealBtn.textContent = "Reveal Steps";
+  } else {
+    revealBtn.textContent = "Hide Steps";
+    placeholderText.style.display = "none";
+    stepsContainer.style.display = "block";
+  }
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = "block";
+  result.textContent = "⚠️ Invalid Input";
+  equation.innerHTML = "";
+  stepsContainer.style.display = "none";
+  placeholderText.style.display = "block";
+  placeholderText.textContent = "Fix structural input syntax parameters above to proceed.";
+}
+
+function handleDropdownUpdates() {
+  const src = Number(fromBaseSelect.value);
+  inputLabel.textContent = `Enter ${names[src]} (Base ${src}) Value:`;
+  sliderWrapper.style.display = src === 10 ? "block" : "none";
+  
+  if (src === 10) manualInput.value = "25";
+  else if (src === 2) manualInput.value = "11001";
+  else if (src === 8) manualInput.value = "31";
+  else if (src === 16) manualInput.value = "19";
+  
+  processConversion(true);
+}
+
+slider.addEventListener("input", () => {
+  manualInput.value = logToNum(slider.value);
+  processConversion(true);
+});
+manualInput.addEventListener("input", () => processConversion(true));
+fromBaseSelect.addEventListener("change", handleDropdownUpdates);
+toBaseSelect.addEventListener("change", () => processConversion(true));
+
+revealBtn.addEventListener("click", () => {
+  isExpanded = !isExpanded;
+  processConversion(false);
+});
+
+handleDropdownUpdates();
+</script>
+</body>
+</html>

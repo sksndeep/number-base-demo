@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive Number Bases</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: Arial, sans-serif;
+  background: #eff6ff; color: #172554;
+}
+main {
+  max-width: 1000px; margin: auto;
+  background: white; padding: 30px;
+  border-radius: 20px; text-align: center;
+  box-shadow: 0 8px 30px #cbd5e1;
+}
+h1 { color: #1d4ed8; font-size: 34px; }
+label { font-size: 20px; font-weight: bold; }
+input, select, button {
+  font-size: 20px; padding: 10px;
+  margin: 8px; border-radius: 8px;
+}
+input[type=range] { width: 85%; accent-color: #2563eb; }
+input[type=number] { width: 180px; }
+button {
+  background: #2563eb; color: white;
+  border: none; cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #1e40af; }
+.bases { margin: 15px; }
+.result {
+  font-size: clamp(32px, 5vw, 54px);
+  color: #0f766e; font-weight: bold;
+  overflow-wrap: anywhere; margin: 20px;
+}
+.panel {
+  background: #f1f5f9; padding: 18px;
+  border-radius: 12px; margin-top: 18px;
+}
+.equation {
+  font-size: clamp(18px, 3vw, 27px);
+  line-height: 1.8; overflow-wrap: anywhere;
+}
+.small { color: #475569; font-size: 17px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Explore Number Systems</h1>
+<p class="small">
+Change the integer and base. Observe how its representation changes!
+</p>
+
+<label for="slider">Choose a positive integer</label>
+<h2 id="number">25</h2>
+
+<input id="slider" type="range" min="0" max="6" value="1.3979" step="0.0001">
+<p class="small">1 <span style="float:right">1,000,000</span></p>
+
+<label for="manual">Or enter a number:</label>
+<input id="manual" type="number" min="1" max="1000000" value="25">
+
+<div class="bases">
+<label for="base">Number base:</label>
+<select id="base">
+  <option value="2">Binary (base 2)</option>
+  <option value="8">Octal (base 8)</option>
+  <option value="10">Decimal (base 10)</option>
+  <option value="16">Hexadecimal (base 16)</option>
+</select>
+</div>
+
+<button id="reveal">Reveal place values</button>
+
+<div class="panel">
+  <p class="small">Representation in the selected base</p>
+  <div id="result" class="result">11001₂</div>
+  <div id="equation" class="equation"></div>
+  <p id="rule" class="small"></p>
+</div>
+</main>
+
+<script>
+const slider = document.getElementById("slider");
+const manual = document.getElementById("manual");
+const base = document.getElementById("base");
+const numberLabel = document.getElementById("number");
+const result = document.getElementById("result");
+const equation = document.getElementById("equation");
+const rule = document.getElementById("rule");
+const revealBtn = document.getElementById("reveal");
+
+const symbols = "0123456789ABCDEF";
+const subscripts = {
+  2: "₂", 8: "₈", 10: "₁₀", 16: "₁₆"
+};
+
+// Track the state globally to enable clean show/hide toggling
+let isExpanded = false;
+
+function logToNum(val) {
+  return Math.round(Math.pow(10, Number(val)));
+}
+
+function numToLog(num) {
+  return Math.log10(Number(num));
+}
+
+function update(value, forceState = null) {
+  const n = Math.min(Math.max(Number(value), 1), 1000000);
+  const b = Number(base.value);
+
+  if (!Number.isSafeInteger(n) || n < 1 || n > 1000000) {
+    result.textContent = "Enter 1–1,000,000";
+    equation.textContent = "";
+    rule.textContent = "";
+    return;
+  }
+
+  numberLabel.textContent = n.toLocaleString('en-IN');
+  const representation = n.toString(b).toUpperCase();
+  result.textContent = representation + subscripts[b];
+
+  manual.value = n;
+
+  // Determine if expansion should show or hide based on interaction context
+  if (forceState !== null) {
+    isExpanded = forceState;
+  }
+
+  if (!isExpanded) {
+    equation.textContent = "Click 'Reveal place values' to expand.";
+    rule.textContent = "";
+    revealBtn.textContent = "Reveal place values";
+    return;
+  }
+
+  revealBtn.textContent = "Hide place values";
+
+  if (representation.length > 25) {
+    equation.textContent = n + " = [" + representation.length + " digits in base " + b + "]";
+  } else {
+    const terms = [...representation].map((digit, i) => {
+      const coefficient = symbols.indexOf(digit);
+      const power = representation.length - 1 - i;
+      return coefficient + " × " + b + "^" + power;
+    });
+    equation.textContent = n + " = " + terms.join(" + ") + " = " + n;
+  }
+
+  const maxDigitSymbol = b === 16 ? "F" : (b - 1);
+  rule.textContent =
+    "Valid digits: 0 to " + maxDigitSymbol +
+    ". Each position represents a power of " + b + ".";
+}
+
+slider.addEventListener("input", () => {
+  const val = logToNum(slider.value);
+  update(val, false); // Resets state to hidden on layout shifts
+});
+
+manual.addEventListener("change", () => {
+  update(manual.value, false); // Resets state to hidden on value shifts
+  slider.value = numToLog(manual.value);
+});
+
+base.addEventListener("change", () => {
+  update(manual.value, false); // Resets state to hidden on base shifts
+});
+
+revealBtn.addEventListener("click", () => {
+  // Toggle current state on press execution
+  isExpanded = !isExpanded;
+  update(manual.value);
+});
+
+// Initial load parameters setup
+update(25, false);
+</script>
+</body>
+</html>

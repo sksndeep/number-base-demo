@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Base Arithmetic Simulator</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: Arial, sans-serif;
+  background: #eff6ff; color: #172554;
+}
+main {
+  max-width: 1000px; margin: auto;
+  background: white; padding: 30px;
+  border-radius: 20px; text-align: center;
+  box-shadow: 0 8px 30px #cbd5e1;
+}
+h1 { color: #3c6ec8; font-size: 32px; margin-bottom: 5px; } 
+label { font-size: 18px; font-weight: bold; display: inline-block; margin: 10px; }
+input, select, button {
+  font-size: 20px; padding: 10px;
+  margin: 8px; border-radius: 8px;
+  border: 2px solid #cbd5e1;
+}
+input:focus, select:focus {
+  border-color: #3c6ec8; outline: none;
+}
+input[type=text] { width: 180px; text-align: center; font-family: monospace; }
+button {
+  background: #3c6ec8; color: white;
+  border: none; cursor: pointer;
+  transition: background 0.2s;
+  padding: 10px 24px; font-weight: bold;
+}
+button:hover { background: #284c8c; }
+.selectors-box {
+  background: #e8f0fe; padding: 15px; 
+  border-radius: 12px; margin: 15px 0;
+  display: flex; justify-content: center; align-items: center; flex-wrap: wrap;
+}
+.panel {
+  background: #f1f5f9; padding: 20px;
+  border-radius: 12px; margin-top: 20px;
+  text-align: left;
+}
+.result-box {
+  font-size: clamp(32px, 5vw, 48px);
+  color: #0f766e; font-weight: bold;
+  overflow-wrap: anywhere; margin: 15px 0;
+  text-align: center;
+  font-family: monospace;
+}
+.steps {
+  font-size: clamp(16px, 2.3vw, 20px);
+  line-height: 1.8; overflow-wrap: anywhere;
+  background: white; padding: 15px;
+  border-radius: 8px; border-left: 5px solid #3c6ec8;
+  font-family: monospace;
+}
+.error-msg { color: #de3100; font-weight: bold; margin: 10px 0; display: none; text-align:center;} 
+.small { color: #475569; font-size: 16px; margin: 5px 0; }
+.flex-center { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main>
+<h1>Base Arithmetic Simulator</h1>
+<p class="small">Visualize addition and multiplication step-by-step using structural base polynomials.</p>
+
+<div class="selectors-box">
+  <label for="operation-type">Operation:</label>
+  <select id="operation-type">
+    <option value="+">Addition (+)</option>
+    <option value="*">Multiplication (×)</option>
+  </select>
+
+  <label for="arithmetic-base">Working Base:</label>
+  <select id="arithmetic-base">
+    <option value="2">Binary (base 2)</option>
+    <option value="8">Octal (base 8)</option>
+    <option value="16">Hexadecimal (base 16)</option>
+  </select>
+</div>
+
+<div>
+  <div class="flex-center">
+    <input id="input-val1" type="text" value="1011">
+    <span id="op-symbol" style="font-size:26px; font-weight:bold; margin: 0 10px;">+</span>
+    <input id="input-val2" type="text" value="1101">
+  </div>
+  <div id="error-box" class="error-msg"></div>
+</div>
+
+<div class="flex-center" style="margin-top: 15px;">
+  <button id="reveal">Reveal Steps</button>
+</div>
+
+<div class="panel">
+  <p class="small" style="text-align:center; font-weight:bold;">Arithmetic Evaluation Output</p>
+  <div id="result" class="result-box">11000₂</div>
+  <div id="steps-container" style="display:none;">
+    <h3 style="margin-top:0; color:#3c6ec8;">Polynomial Derivation Steps:</h3>
+    <div id="equation" class="steps"></div>
+  </div>
+  <p id="placeholder-text" style="text-align:center; color:#64748b; margin:0;">Click 'Reveal Steps' to inspect the mathematical breakdown.</p>
+</div>
+</main>
+
+<script>
+const opTypeSelect = document.getElementById("operation-type");
+const baseSelect = document.getElementById("arithmetic-base");
+const inputVal1 = document.getElementById("input-val1");
+const inputVal2 = document.getElementById("input-val2");
+const opSymbol = document.getElementById("op-symbol");
+const errorBox = document.getElementById("error-box");
+const revealBtn = document.getElementById("reveal");
+const result = document.getElementById("result");
+const stepsContainer = document.getElementById("steps-container");
+const equation = document.getElementById("equation");
+const placeholderText = document.getElementById("placeholder-text");
+
+const symbols = "0123456789ABCDEF";
+const subscripts = { 2: "₂", 8: "₈", 16: "₁₆" };
+const names = { 2: "Binary", 8: "Octal", 16: "Hexadecimal" };
+
+let isExpanded = false;
+
+function isValidInput(str, base) {
+  if (str.length === 0) return false;
+  for (let i = 0; i < str.length; i++) {
+    let index = symbols.indexOf(str[i]);
+    if (index === -1 || index >= base) return false;
+  }
+  return true;
+}
+
+function runArithmetic(hideSteps = true) {
+  errorBox.style.display = "none";
+  const op = opTypeSelect.value;
+  const base = Number(baseSelect.value);
+  
+  let val1 = inputVal1.value.trim().toUpperCase();
+  let val2 = inputVal2.value.trim().toUpperCase();
+
+  if (hideSteps) isExpanded = false;
+  opSymbol.textContent = op === "+" ? "+" : "×";
+
+  if (val1 === "" || val2 === "") {
+    showError("Both input fields must contain values.");
+    return;
+  }
+
+  if (!isValidInput(val1, base) || !isValidInput(val2, base)) {
+    showError(`Invalid characters detected. ${names[base]} only accepts digits up to ` + (base === 16 ? "F" : base - 1));
+    return;
+  }
+
+  // Parse values to temporary base 10 representations
+  let dec1 = parseInt(val1, base);
+  let dec2 = parseInt(val2, base);
+  
+  let finalDecResult = op === "+" ? (dec1 + dec2) : (dec1 * dec2);
+  if (finalDecResult > 2000000000) {
+    showError("Calculation outputs exceed safe layout bounds.");
+    return;
+  }
+
+  let finalBaseResult = finalDecResult.toString(base).toUpperCase();
+  result.textContent = finalBaseResult + subscripts[base];
+
+  handleToggleUIState();
+  if (!isExpanded) return;
+
+  // Generate polynomial breakdown matrix
+  let html = `<strong>Step 1: Convert values to positional base-10 equivalents:</strong><br>`;
+  
+  html += ` &bull; ${val1}${subscripts[base]} = ` + [...val1].map((d, i) => `(${symbols.indexOf(d)}×${base}<sup>${val1.length-1-i}</sup>)`).join("+") + ` = <strong>${dec1}₁₀</strong><br>`;
+  html += ` &bull; ${val2}${subscripts[base]} = ` + [...val2].map((d, i) => `(${symbols.indexOf(d)}×${base}<sup>${val2.length-1-i}</sup>)`).join("+") + ` = <strong>${dec2}₁₀</strong><br><br>`;
+  
+  html += `<strong>Step 2: Execute operation (${op === "+" ? "Addition" : "Multiplication"}) in base-10:</strong><br>`;
+  html += ` &bull; ${dec1}₁₀ ${op === "+" ? "+" : "×"} ${dec2}₁₀ = <strong>${finalDecResult}₁₀</strong><br><br>`;
+
+  html += `<strong>Step 3: Re-expand result back into Base ${base} components:</strong><br>`;
+  let terms = [];
+  for (let i = 0; i < finalBaseResult.length; i++) {
+    let d = finalBaseResult[i];
+    let power = finalBaseResult.length - 1 - i;
+    terms.push(`(${symbols.indexOf(d)} × ${base}<sup>${power}</sup>)`);
+  }
+  html += ` &bull; <strong>${finalDecResult}₁₀</strong> = ` + terms.join(" + ") + `<br><br>`;
+  html += `Extracting constants left-to-right yields final value string: <strong>${finalBaseResult}${subscripts[base]}</strong>`;
+
+  equation.innerHTML = html;
+}
+
+function handleToggleUIState() {
+  if (!isExpanded) {
+    stepsContainer.style.display = "none";
+    placeholderText.style.display = "block";
+    placeholderText.textContent = "Click 'Reveal Steps' to inspect the mathematical breakdown.";
+    revealBtn.textContent = "Reveal Steps";
+  } else {
+    revealBtn.textContent = "Hide Steps";
+    placeholderText.style.display = "none";
+    stepsContainer.style.display = "block";
+  }
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = "block";
+  result.textContent = "⚠️ Error";
+  equation.innerHTML = "";
+  stepsContainer.style.display = "none";
+  placeholderText.style.display = "block";
+  placeholderText.textContent = "Correct validation parameter values above to unlock evaluation charts.";
+}
+
+function handleDropdownUpdates() {
+  const base = Number(baseSelect.value);
+  if (base === 2) { inputVal1.value = "1011"; inputVal2.value = "1101"; }
+  else if (base === 8) { inputVal1.value = "34"; inputVal2.value = "17"; }
+  else if (base === 16) { inputVal1.value = "A5"; inputVal2.value = "1C"; }
+  runArithmetic(true);
+}
+
+inputVal1.addEventListener("input", () => runArithmetic(true));
+inputVal2.addEventListener("input", () => runArithmetic(true));
+opTypeSelect.addEventListener("change", () => runArithmetic(true));
+baseSelect.addEventListener("change", handleDropdownUpdates);
+revealBtn.addEventListener("click", () => {
+  isExpanded = !isExpanded;
+  runArithmetic(false);
+});
+
+handleDropdownUpdates();
+</script>
+</body>
+</html>
